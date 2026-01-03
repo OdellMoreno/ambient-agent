@@ -1,0 +1,110 @@
+name: AmbientAgent
+options:
+  bundleIdPrefix: com.ambient
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  AmbientAgent:
+    type: application
+    platform: macOS
+    sources:
+      - path: AmbientAgent
+        excludes:
+          - "**/*.xcassets"
+      - path: AmbientAgent/Resources
+        type: folder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ambient.agent
+        INFOPLIST_FILE: AmbientAgent/Info.plist
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        ENABLE_HARDENED_RUNTIME: NO
+    dependencies:
+      - target: AmbientCore
+        embed: true
+      - target: AmbientAgentHelper
+        embed: true
+        codeSign: true
+        copyPhase:
+          destination: wrapper
+          subpath: Contents/Library/LaunchAgents
+    postBuildScripts:
+      - name: Copy LaunchAgent plist
+        script: |
+          mkdir -p "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Library/LaunchAgents/"
+          cp "${SRCROOT}/AmbientAgentHelper/com.ambient.agent.plist" "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Library/LaunchAgents/"
+        basedOnDependencyAnalysis: false
+
+  AmbientAgentHelper:
+    type: tool
+    platform: macOS
+    sources:
+      - path: AmbientAgentHelper
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ambient.agent.helper
+        INFOPLIST_FILE: AmbientAgentHelper/Info.plist
+        SKIP_INSTALL: YES
+        ENABLE_HARDENED_RUNTIME: NO
+    dependencies:
+      - target: AmbientCore
+        embed: false
+
+  AmbientCore:
+    type: framework
+    platform: macOS
+    sources:
+      - path: AmbientCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ambient.agent.core
+        INFOPLIST_FILE: AmbientCore/Info.plist
+        DEFINES_MODULE: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+
+  AmbientAgentTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+      - path: AmbientAgentHelper/Pipeline
+        compilerFlags: ""
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ambient.agent.tests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: AmbientAgent
+      - target: AmbientCore
+
+schemes:
+  AmbientAgent:
+    build:
+      targets:
+        AmbientAgent: all
+        AmbientAgentHelper: all
+        AmbientCore: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - AmbientAgentTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
